@@ -25,7 +25,9 @@ def affine_forward(x, w, b):
     # TODO: Implement the affine forward pass. Store the result in out. You   #
     # will need to reshape the input into rows.                               #
     ###########################################################################
-    pass
+    # flat the image to vector
+    x_temp = np.reshape(x, (x.shape[0], -1))
+    out = np.dot(x_temp, w) + b
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
