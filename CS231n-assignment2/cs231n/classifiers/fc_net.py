@@ -47,7 +47,11 @@ class TwoLayerNet(object):
         # weights and biases using the keys 'W1' and 'b1' and second layer weights #
         # and biases using the keys 'W2' and 'b2'.                                 #
         ############################################################################
-        pass
+        W1 = np.random.normal(scale=weight_scale, size=(input_dim, hidden_dim))
+        b1 = np.zeros((hidden_dim, 1))
+        W2 = np.random.normal(scale=weight_scale, size=(hidden_dim, num_classes))
+        b2 = np.zeros((num_classes, 1))
+        self.params = {'W1': W1, 'b1':b1, 'W2':W2, 'b2':b2}
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -77,7 +81,12 @@ class TwoLayerNet(object):
         # TODO: Implement the forward pass for the two-layer net, computing the    #
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
-        pass
+        layer1_out, layer1_cache = affine_relu_forward(X, self.params['W1'], self.params['b1'])
+        layer2_affine_out, layer2_affine_cache /
+                        = affine_relu_forward(layer1_out, self.params['W2'], self.params['b2'])
+        scores = np.exp(layer2_affine_out) / np.sum(np.exp(layer2_affine_out), axis = 1)
+
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -97,7 +106,7 @@ class TwoLayerNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        loss, grads = softmax(X, y)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
