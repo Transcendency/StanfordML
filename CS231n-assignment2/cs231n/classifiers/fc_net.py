@@ -82,9 +82,9 @@ class TwoLayerNet(object):
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
         layer1_out, layer1_cache = affine_relu_forward(X, self.params['W1'], self.params['b1'])
-        layer2_affine_out, layer2_affine_cache /
-                        = affine_relu_forward(layer1_out, self.params['W2'], self.params['b2'])
-        scores = np.exp(layer2_affine_out) / np.sum(np.exp(layer2_affine_out), axis = 1)
+        scores, scores_cache = affine_relu_forward(layer1_out, self.params['W2'], self.params['b2'])
+        # scores = np.exp(layer2_affine_out) \
+        #                             / np.sum(np.exp(layer2_affine_out), axis = 1).reshape(-1,1)
 
 
         ############################################################################
@@ -106,7 +106,19 @@ class TwoLayerNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        loss, grads = softmax(X, y)
+        W1 = self.params['W1']
+        W2 = self.params['W2']
+        reg = self.reg
+        m = X.shape[0]
+        loss, dout = softmax_loss(scores, y)
+        loss += 0.5 * reg * (np.sum(W1**2) + np.sum(W2**2))
+
+        dx2, dW2, db2 = affine_relu_backward(dout, scores_cache)
+        dx1, dW1, db1 = affine_relu_backward(dx2, layer1_cache)
+
+        dW2 += reg*W2
+        dW1 += reg*W1
+        grads.update({'W1':dW1, 'W2':dW2, 'b1':db1, 'b2':db2})
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -172,7 +184,19 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to one and shift      #
         # parameters should be initialized to zero.                                #
         ############################################################################
-        pass
+        W1 = np.random.normal(scale=weight_scale, size=(input_dim, hidden_dims[0]))
+        b1 = np.zeros((hidden_dims[0], 1))
+        self.params = {'W1':W1, 'b1':b1}
+        for i in range(len(hidden_dims) - 1):
+            self.params['W'+str(i)] = np.random.normal(scale=weight_scale, 
+                                            size=(hidden_dims[i], hidden_dims[i+1]))
+            self.params['b'+str(i)] = np.zeros((hidden_dim[i+1], 1))
+
+        self.params['W'+num_layers] = np.random.normal(scale=weight_scale, 
+                                            size=(hidden_dims[-1], num_classes))
+
+        self.params['W'+num_layers] = np.zeros((num_classes, 1))
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
