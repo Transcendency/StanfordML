@@ -174,7 +174,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # variance, storing your result in the running_mean and running_var   #
         # variables.                                                          #
         #######################################################################
-        pass
+        mu = np.sum(x, axis=1) / np.shape[0]
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
