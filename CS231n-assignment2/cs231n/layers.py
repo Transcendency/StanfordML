@@ -242,6 +242,15 @@ def batchnorm_backward(dout, cache):
     dbeta = np.sum(dout, axis=0)
     dgamma = np.sum(dgammanorm * xnorm, axis=0)
     dxnorm = dgammanorm * gamma
+    dxmu = dxnorm * invvar
+    dinvvar = np.sum(dxnorm * mu, axit=0)
+    dsqrtvar = dinvvar * (- sqrtvar ** (-2))
+    dvar = 0.5 * var ** 0.5 * dsqrtvar
+    dcarre = dvar / float(N) * np.ones(carre.shape)
+    dxmu += 2 * xmu * dcarre
+    dx = dxmu
+    dmu = - np.sum(dxmu, axis=0)
+    dx += 1 / float(N) * np.ones((dxmu.shape)) * dmu
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
