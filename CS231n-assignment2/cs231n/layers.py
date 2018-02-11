@@ -174,19 +174,39 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # variance, storing your result in the running_mean and running_var   #
         # variables.                                                          #
         #######################################################################
-        mu = np.sum(x, axis=0) / float(N)
-        xmu = x - mu
-        carre = xmu**2
-        var = np.sum(carre, axis=0) / float(N)
-        sqrtvar = np.sqrt(var)
-        invvar = 1. / sqrtvar
-        xnorm = xmu * invvar
-        gammanorm = gamma * xnorm
-        out = gammavar + beta
+        #Forward pass
+        # Step 1 - shape of mu (D, )
+        mu = 1 / float(N) * np.sum(x, axis=0)
 
-        running_mean = momentum * running_mean + (1 - momentum) * mu
-        running_var = momentum * running_var + (1 - momentum) * var
-        cache = (mu, xmu, carre, var, sqrtvar, invvar, xnorm, gammanorm, gamma, beta, x, bn_param)
+        # Step 2 - shape -f var (N, D)
+        xmu = x - mu
+
+        # Step 3 - shape of carre (N, D)
+        carre = xmu**2
+
+        # Step 4 - shape of var (D, )
+        var = 1 / float(N) * np.sum(carre, axis=0)
+
+        # Step 5 - shape of sqrtvar (D,)
+        sqrtvar = np.sqrt(var + eps)
+
+        # Step 6 - shape invvar (D, )
+        invvar = 1. / sqrtvar
+
+        # Step 7 - shape va2 (N, D)
+        va2 = xmu * invvar
+
+        # Step 8 - shape va3 (N, D)
+        va3 = gamma * va2
+
+        # Step 9 - shape va3 (N, D)
+        out = va3 + beta
+
+        running_mean = momentum * running_mean + (1.0 - momentum) * mu
+        running_var = momentum * running_var + (1.0 - momentum) * var
+
+        cache = (mu, xmu, carre, var, sqrtvar, invvar,
+                 va2, va3, gamma, beta, x, bn_param)
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -199,8 +219,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         mu = running_mean
         var = running_var
-        z_norm = (x - mu) / (np.sqrt(sigma + eps))
-        out = gamma * z_norm + beta
+        xhat = (x - mu) / np.sqrt(var + eps)
+        out = gamma * xhat + beta
         cache = (mu, var, gamma, beta, bn_param)
         #######################################################################
         #                          END OF YOUR CODE                           #
@@ -237,19 +257,39 @@ def batchnorm_backward(dout, cache):
     # TODO: Implement the backward pass for batch normalization. Store the    #
     # results in the dx, dgamma, and dbeta variables.                         #
     ###########################################################################
-    mu, xmu, carre, var, sqrtvar, invvar, xnorm, gammanorm, gamma, beta, x, bn_param = cache
-    dgammanorm = dout
+    mu, xmu, carre, var, sqrtvar, invvar, va2, va3, gamma, beta, x, bn_param = cache
+    eps = bn_param.get('eps', 1e-5)
+    N, D = dout.shape
+
+    # Backprop Step 9
+    dva3 = dout
     dbeta = np.sum(dout, axis=0)
-    dgamma = np.sum(dgammanorm * xnorm, axis=0)
-    dxnorm = dgammanorm * gamma
-    dxmu = dxnorm * invvar
-    dinvvar = np.sum(dxnorm * mu, axit=0)
-    dsqrtvar = dinvvar * (- sqrtvar ** (-2))
-    dvar = 0.5 * var ** 0.5 * dsqrtvar
-    dcarre = dvar / float(N) * np.ones(carre.shape)
+
+    # Backprop step 8
+    dva2 = gamma * dva3
+    dgamma = np.sum(va2 * dva3, axis=0)
+
+    # Backprop step 7
+    dxmu = invvar * dva2
+    dinvvar = np.sum(xmu * dva2, axis=0)
+
+    # Backprop step 6
+    dsqrtvar = -1. / (sqrtvar**2) * dinvvar
+
+    # Backprop step 5
+    dvar = 0.5 * (var + eps)**(-0.5) * dsqrtvar
+
+    # Backprop step 4
+    dcarre = 1 / float(N) * np.ones((carre.shape)) * dvar
+
+    # Backprop step 3
     dxmu += 2 * xmu * dcarre
+
+    # Backprop step 2
     dx = dxmu
     dmu = - np.sum(dxmu, axis=0)
+
+    # Basckprop step 1
     dx += 1 / float(N) * np.ones((dxmu.shape)) * dmu
     ###########################################################################
     #                             END OF YOUR CODE                            #
