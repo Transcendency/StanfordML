@@ -5,6 +5,45 @@ import numpy as np
 from cs231n.layers import *
 from cs231n.layer_utils import *
 
+def affine_bnorm_relu_forward(x, w, b, gamma, beta, bn_param):
+    """
+    Convenience layer that perorms an affine transform followed by a norm and 
+    a ReLU
+
+    Inputs:
+    - x: Input to the affine layer
+    - w, b: Weights for the affine layer
+    - gamma: Scale parameter of shape (D,)
+    - beta: Shift paremeter of shape (D,)    
+    - bn_param: Dictionary with the following keys:
+      - mode: 'train' or 'test'; required
+      - eps: Constant for numeric stability
+      - momentum: Constant for running mean / variance.
+      - running_mean: Array of shape (D,) giving running mean of features
+      - running_var Array of shape (D,) giving running variance of features
+
+    Returns a tuple of:
+    - out: Output from the ReLU
+    - cache: Object to give to the backward pass
+    """
+    a, fc_cache = affine_forward(x, w, b)
+    nm_a, nm_cache = batchnorm_forward(a, gamma, beta, bn_param)
+    out, relu_cache = relu_forward(nm_a)
+    cache = (fc_cache, nm_cache, relu_cache)
+
+    return out, cache
+
+def affine_bnorm_relu_backward(dout, cache):
+    """
+    Backward pass for the affine-bnorm-relu convenience layer
+    """
+    fc_cache, nm_cache, relu_cache = cache
+    da = relu_backward(dout, relu_cache)
+    dna, dgamma, dbeta = batchnorm_backward(da, nm_cache)
+    dx, dw, db = affine_backward(d_a, fc_cache)
+    return dx, dw, db, dgamma, dbeta
+
+
 
 class TwoLayerNet(object):
     """
@@ -186,11 +225,18 @@ class FullyConnectedNet(object):
         ############################################################################
         W1 = np.random.normal(scale=weight_scale, size=(input_dim, hidden_dims[0]))
         b1 = np.zeros(hidden_dims[0])
-        self.params = {'W1':W1, 'b1':b1}
+        gamma1 = np.random.normal(scale=weight_scale, size=(hidden_dims[0]))
+        beta1 = np.random.normal(scale=weight_scale, size=(hidden_dims[0]))
+        self.params = {'W1':W1, 'b1':b1, 'gamma1':gamma1, 'beta1':beta1}
         for i in range(1, self.num_layers-1):
             self.params['W'+str(i+1)] = np.random.normal(scale=weight_scale, 
                                             size=(hidden_dims[i-1], hidden_dims[i]))
             self.params['b'+str(i+1)] = np.zeros(hidden_dims[i])
+            self.params['gamma'+str(i+1)] = np.random.normal(scale=weight_scale,
+                                                             size=(hidden_dims[i]))
+            
+            self.params['beta'+str(i+1)] = np.random.normal(scale=weight_scale,
+                                                             size=(hidden_dims[i]))                                                              
 
         self.params['W'+str(self.num_layers)] = np.random.normal(scale=weight_scale, 
                                             size=(hidden_dims[-1], num_classes))
@@ -244,6 +290,9 @@ class FullyConnectedNet(object):
 
         scores = None
         params = self.params
+        print(params.keys())
+        bn_params = self.bn_params
+        print(bn_params)
         num_layers = self.num_layers
         reg = self.reg
         outs = {}
@@ -261,10 +310,17 @@ class FullyConnectedNet(object):
         # layer, etc.                                                              #
         ############################################################################
         outs['out0'] = X
-        for i in range(1, num_layers + 1):
+        for i in range(1, num_layers+1):
             outs['out'+str(i)], caches['cache'+str(i)] = \
-                affine_relu_forward(outs['out'+str(i-1)], params['W' + str(i)], params['b' + str(i)])
-
+                affine_bnorm_relu_forward(outs['out'+str(i-1)],
+                                            params['W' + str(i)],
+                                            params['b' + str(i)],
+                                            params['gamma' + str(i)],
+                                            params['beta' + str(i)],
+                                            bn_params[i]) \
+                if self.use_batchnorm and i < num_layers else \
+                affine_relu_forward(outs['out'+str(i-1)], params['W' + str(i)], params['b' + str(i)]) \
+                
         scores = outs['out' + str(num_layers)]
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -294,10 +350,20 @@ class FullyConnectedNet(object):
             reg_loss += np.sum(params['W'+str(i)]**2)
         loss += 0.5 * reg * reg_loss 
         for i in reversed(range(1, num_layers+1)):
-            dout, dW, db = affine_relu_backward(dout, caches['cache' + str(i)])
+            if self.use_batchnorm and i < num_layers:
+                dout, dW, db, dgamma, dbeta = affine_bnorm_relu_backward(dout, 
+                                                            caches['cache' + str(i)]) 
+            else:
+                dout, dW, db = affine_relu_backward(dout, caches['cache' + str(i)])
+
+
             dW += reg * params['W' + str(i)]
+            dgamma += reg * params['gamma' + str(i)]
+            dbeta += reg * params['beta' + str(i)]
             grads['W'+str(i)] = dW
             grads['b'+str(i)] = db
+            grads['gamma'+str(i)] = dgamma
+            grads['beta'+str(i)] = dbeta
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
