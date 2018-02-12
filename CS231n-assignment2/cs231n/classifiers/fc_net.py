@@ -225,18 +225,11 @@ class FullyConnectedNet(object):
         ############################################################################
         W1 = np.random.normal(scale=weight_scale, size=(input_dim, hidden_dims[0]))
         b1 = np.zeros(hidden_dims[0])
-        gamma1 = np.random.normal(scale=weight_scale, size=(hidden_dims[0]))
-        beta1 = np.random.normal(scale=weight_scale, size=(hidden_dims[0]))
-        self.params = {'W1':W1, 'b1':b1, 'gamma1':gamma1, 'beta1':beta1}
+        self.params = {'W1':W1, 'b1':b1}
         for i in range(1, self.num_layers-1):
             self.params['W'+str(i+1)] = np.random.normal(scale=weight_scale, 
                                             size=(hidden_dims[i-1], hidden_dims[i]))
-            self.params['b'+str(i+1)] = np.zeros(hidden_dims[i])
-            self.params['gamma'+str(i+1)] = np.random.normal(scale=weight_scale,
-                                                             size=(hidden_dims[i]))
-            
-            self.params['beta'+str(i+1)] = np.random.normal(scale=weight_scale,
-                                                             size=(hidden_dims[i]))                                                              
+            self.params['b'+str(i+1)] = np.zeros(hidden_dims[i])                                                              
 
         self.params['W'+str(self.num_layers)] = np.random.normal(scale=weight_scale, 
                                             size=(hidden_dims[-1], num_classes))
@@ -265,6 +258,14 @@ class FullyConnectedNet(object):
         self.bn_params = []
         if self.use_batchnorm:
             self.bn_params = [{'mode': 'train'} for i in range(self.num_layers - 1)]
+            gamma1 = np.random.normal(scale=weight_scale, size=(hidden_dims[0]))
+            beta1 = np.random.normal(scale=weight_scale, size=(hidden_dims[0]))
+            self.params.update({'gamma1':gamma1, 'beta1':beta1})
+            for i in range(1, self.num_layers-1):            
+                self.params['gamma'+str(i+1)] = np.random.normal(scale=weight_scale,
+                                                                 size=(hidden_dims[i]))
+                self.params['beta'+str(i+1)] = np.random.normal(scale=weight_scale,
+                                                                 size=(hidden_dims[i]))
 
         # Cast all parameters to the correct datatype
         for k, v in self.params.items():
@@ -353,8 +354,8 @@ class FullyConnectedNet(object):
             if self.use_batchnorm and i < num_layers:
                 dout, dW, db, dgamma, dbeta = affine_bnorm_relu_backward(dout, 
                                                             caches['cache' + str(i)])
-                dgamma += reg * params['gamma' + str(i)]
-                dbeta += reg * params['beta' + str(i)]
+                # dgamma += reg * params['gamma' + str(i)]
+                # dbeta += reg * params['beta' + str(i)]
                 grads['gamma'+str(i)] = dgamma
                 grads['beta'+str(i)] = dbeta
             else:
